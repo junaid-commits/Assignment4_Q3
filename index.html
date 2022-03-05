@@ -3,97 +3,149 @@
 
 <head>
     <meta charset="utf-8">
+    <!-- set styles on the top -->
     <style>
         .chart-container {
             max-width: 1050px;
-            border: 3px solid red;
+            /* border: 2px solid red; */
             margin: 0 auto;
             /* auto centers the div */
             font-family: 'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif;
         }
 
         svg {
-            border: 2px solid purple;
+             /* border: 2px solid purple; */ */
             overflow: visible;
         }
 
-
         h1 {
-            border: 2px solid green;
+            margin: 0 auto;
         }
+
+        .pop-up {
+            position: absolute; 
+            border: 1px solid black;
+            border-radius: 1px;
+            line-height: 1.2;
+            width: 200px;
+            pointer-events: none;
+            background-color: white;
+            padding: 10px;
+        }
+
     </style>
-    <!-- add your script blocks at the end -->
 
 </head>
 
 <body>
     <div class="chart-container">
         <h1 class="headline">
-            D3 starter template
+            United States Poverty Map</span>
         </h1>
 
-        <svg width="900px" height="500px">
-
+        <svg width="1050px" height="900px">
         </svg>
+
+        <div class="pop-up">
+        </div>
+        <p> Note: Number of children in poverty by county,state in as per US census 2019</p>
     </div>
 </body>
 
-
-<!-- we're using d3 version 6 (the latest version) for all out work -->
 <script src="https://d3js.org/d3.v6.min.js"></script>
-
-<!-- load topojson script -->
-<script src="https://unpkg.com/topojson@3"></script>
+<script src="https://unpkg.com/topojson@3"></script> 
+<!-- we're using d3 version 6 (the latest version) for all out work -->
 
 <script>
-    console.log({d3})
-    console.log({topojson})
+    // console.log({ d3 })
+    // console.log({topojson})
 
-    // //https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise
-    Promise.all([ //waits for all the data to load, then when loaded will return it all in one array called res
-        d3.json('output.json'),
-    ])
-        .then(ready)
-        .catch((err) => {
-            console.log(err);
-        });
+    let width = 900;
+    let height = 800;
 
-    function ready(res) {
-        console.log(res[0])
-        let raw = res[0]
+    let svg = d3.select("body")
+        .select("svg")
+    
+    let margin = { top: 10, right: 10, bottom: 20, left: 30 };
 
-        let data = topojson.feature(raw, raw.objects.county);
+    d3.json("output.json").then(function (data) {
+        //console.log(loaded)
+        //console.log(data)
+    
+    let counties = topojson.feature(data, data.objects.county)
+    let states = topojson.feature(data, data.objects.states)
+    console.log(counties)
 
-        let width = 1050;
-        let height = 500;
+    let projection = d3.geoIdentity()
+        .fitSize([width, height], states)
+        .reflectY(true)
 
-        console.log(data)
+    let path = d3.geoPath(projection)
 
-        let svg = d3.select("body").select("svg")
+    svg.append("g")
+       .attr("class", "states")
+       .selectAll("path")
+       .data(states.features)
+       .join("path")
+       .attr("d", path)
+       .attr("fill", "lightgrey")
+       .attr("stroke", "white")
+    
+    let popup = d3.select(".pop-up");
 
-        let myProjection = d3.geoAlbersUsa()
-            .fitSize([width, height], data)
+    let circles = svg.append("g")
+        .selectAll(".circles")
+        .data(counties.features.filter(d => d.geometry != null).sort((a,b) => d3.descending(a.properties.pop_18_in_poverty, b.properties.pop_18_in_poverty)))
+        .join("circle")
+        .attr("class", function (d) { return "circles p-" + d.properties.GEOID})
+        .attr("fill", "lightcoral")
+        .attr("stroke", "#fff")
+        .attr("fill-opacity", 0.5)
+        .attr("stroke-width", 0.8)
+        .attr("transform", d => `translate(${projection([d.geometry.coordinates[0], d.geometry.coordinates[1]])})`)
+        .attr("r", d => Math.sqrt(d.properties.pop_18_in_poverty/300))
+    
+    circles.on("mouseover", (event, d) => {
+        console.log(event)
+        console.log(d)
+    
+
+        circles
+            .style("stroke", "#333333")
+            .style("stroke-width", .5)
+            .style("fill", "#c0cad8")
+            .style("fill-opacity", .5)
         
-        //path function
-        let path = d3.geoPath()
-            .projection(myProjection)
+            svg.select(".p-" + d.properties.GEOID)
+            .style("stroke", "black")
+            .style("stroke-width", 2)
+            .style("fill", "yellow")
+            .style("fill-opacity", 1)
+            .raise()
 
-        svg
-            .selectAll(".counties")
-            .data(data.features)
-            .join("path")
-            .attr("d", path)
-            .style("fill", "none")
-            .style("stroke", "#333")
-            .style("stroke-width", .2)
+            let lang = "In " + d.properties.Geo_QName + ", " + "the number of children in poverty in 2019 were" + " " + d.properties.pop_18_in_poverty 
+       
+        console.log(event.x)
+        console.log(event.y)
+        popup
+        .style("opacity", 1)
+        .style("left", (event.x - 120) + "px")
+        .style("top", (event.y - 120) + "px")
+        .html(lang)
+    })
 
-    }
+    points.on("mouseout", (event, d) => {
+            // console.log(event)
+            points
+                .style("stroke", "#333333")
+                .style("stroke-width", .5)
+                .style("fill", "#c0cad8")
 
+            popup
+                .style("opacity", 0)
 
+        })
 
-
-
-
-
+    })
 
 </script>
